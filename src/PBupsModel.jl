@@ -1,9 +1,9 @@
+__precompile__()
+
 """
 A package for fitting data from auditory evidence accumulation task (Poisson clicks task) 
 to evidence accumulation model.
 """
-__precompile__()
-
 module PBupsModel
 
 # 3rd party
@@ -14,7 +14,8 @@ using ForwardDiff
 using Optim
 using GeneralUtils
 
-import ForwardDiff.DiffBase
+import ForwardDiff.DiffResults as DiffBase
+# import ForwardDiff.DiffBase
 # using DiffBase
 
 export 

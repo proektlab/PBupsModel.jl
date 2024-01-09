@@ -1,3 +1,6 @@
+using Distributed
+using SharedArrays
+
 # for using keyword_vgh()
 # change the order of parameters.
 
@@ -6,7 +9,7 @@ function ComputeLL(LLs, ratdata, ntrials::Int#, args, x::Vector{T})
     ;kwargs...)
     LL = 0.
 
-    @sync @parallel for i in 1:ntrials
+    @sync @distributed for i in 1:ntrials
         RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
         Nsteps = Int(ceil(maxT/dt))
 
@@ -22,10 +25,10 @@ end
 function ComputeLL_bbox(LLs, ratdata, ntrials::Int#, args, x::Vector{T})
     ;kwargs...)
     LL  = 0.
-    (k,v) = kwargs[1]
-    LLs = SharedArray(typeof(v), ntrials)#zeros(eltype(params),ntrials)
+    v = kwargs[1]
+    LLs = SharedArray{typeof(v)}(ntrials)#zeros(eltype(params),ntrials)
 
-    @sync @parallel for i in 1:ntrials
+    @sync @distributed for i in 1:ntrials
         RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
         Nsteps = Int(ceil(maxT/dt))
         LLs[i] = LogLikelihood(RightClickTimes, LeftClickTimes, Nsteps, rat_choice
@@ -35,17 +38,17 @@ function ComputeLL_bbox(LLs, ratdata, ntrials::Int#, args, x::Vector{T})
     return LL
 end
 
-function ComputeGrad{T}(ratdata, ntrials::Int, args, x::Vector{T})
+function ComputeGrad(ratdata, ntrials::Int, args, x::Vector{T}) where {T}
     LL        = 0.
     LLgrad    = zeros(T,length(x))
     
     # do we still need wrapper?
     function WrapperLL(;kwargs...)#(params::Vector{T})
         LL  = 0.
-        (k,v) = kwargs[1]
-        LLs = SharedArray(typeof(v), ntrials)#zeros(eltype(params),ntrials)
+        v = kwargs[1]
+        LLs = SharedArray{typeof(v)}(ntrials)#zeros(eltype(params),ntrials)
 
-        @sync @parallel for i in 1:ntrials
+        @sync @distributed for i in 1:ntrials
             RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
             Nsteps = Int(ceil(maxT/dt))
             LLs[i] = LogLikelihood(RightClickTimes, LeftClickTimes, Nsteps, rat_choice
@@ -73,17 +76,17 @@ function ComputeGrad{T}(ratdata, ntrials::Int, args, x::Vector{T})
     return LL, LLgrad
 end
 
-function ComputeHess{T}(ratdata, ntrials::Int, args, x::Vector{T})
+function ComputeHess(ratdata, ntrials::Int, args, x::Vector{T}) where {T}
     LL        = 0.
     LLgrad    = zeros(T,length(x))
     LLhess    = zeros(T,length(x),length(x))
     
     function WrapperLL(;kwargs...)#(params::Vector{T})
         LL  = 0.
-        (k,v) = kwargs[1]
-        LLs = SharedArray(typeof(v), ntrials)#zeros(eltype(params),ntrials)
+        v = kwargs[1]
+        LLs = SharedArray{typeof(v)}(ntrials)#zeros(eltype(params),ntrials)
 
-        @sync @parallel for i in 1:ntrials
+        @sync @distributed for i in 1:ntrials
             RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
             Nsteps = Int(ceil(maxT/dt))
             LLs[i] = LogLikelihood(RightClickTimes, LeftClickTimes, Nsteps, rat_choice
@@ -112,8 +115,8 @@ function ComputeHess{T}(ratdata, ntrials::Int, args, x::Vector{T})
 end
 
 
-function TrialsLikelihood{T}(LL::AbstractArray{T,1}, ratdata, ntrials::Int
-     ;kwargs...)     
+function TrialsLikelihood(LL::AbstractArray{T,1}, ratdata, ntrials::Int
+     ;kwargs...) where {T}
     for i in 1:ntrials
         RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
         Nsteps = Int(ceil(maxT/dt))

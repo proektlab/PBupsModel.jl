@@ -18,7 +18,7 @@ function InitParams(args, seed_mode=1)
         "sigma_s_L" => rand()*50.,
         "sigma_i" => rand()*30.,
         "lambda" => randn()*.01,
-        "B" => rand()*12.+5.,
+        "B" => rand()*12. + 5.,
         "bias" => randn(),
         "phi" => rand()*0.99+0.01,
         "tau_phi" => 0.695*rand()+0.005,
@@ -26,7 +26,7 @@ function InitParams(args, seed_mode=1)
         "lapse_L" => rand()*.5,
         "input_gain_weight" => rand())
 
-        for i in 1:length(args)
+        for i in eachindex(args)
             x_val[i] = rseed_param[args[i]]
         end
     # bing's rat avg parameter set
@@ -45,7 +45,7 @@ function InitParams(args, seed_mode=1)
         "lapse_L" => 0.0613,
         "input_gain_weight" => 0.5)
 
-        for i in 1:length(args)
+        for i in eachindex(args)
             x_val[i] = defaults_param[args[i]]
         end
 
@@ -64,7 +64,7 @@ function InitParams(args, seed_mode=1)
         "lapse_L" => 0.1,
         "input_gain_weight" => 0.5)
 
-        for i in 1:length(args)
+        for i in eachindex(args)
             x_val[i] = simple_param[args[i]]
         end
     end
@@ -103,21 +103,21 @@ function ModelFitting(args, x_init, ratdata, ntrials)
     l = zeros(length(args))
     u = zeros(length(args))
 
-    for i in 1:length(args)
+    for i in eachindex(args)
         l[i] = l_b[args[i]]
         u[i] = u_b[args[i]] 
     end
 
 
     function LL_f(x_init::Vector)
-        LLs = SharedArray(Float64, ntrials)
+        LLs = SharedArray{Float64}(ntrials)
         # return ComputeLL(LLs, ratdata["rawdata"], ntrials, args, x_init)
         return ComputeLL(LLs, ratdata["rawdata"], ntrials
             ;make_dict(args, x_init)...)
     end
 
     # updated for julia v0.6 (in-place order)
-    function LL_g!{T}(grads::Vector{T}, x_init::Vector{T})
+    function LL_g!(grads::Vector{T}, x_init::Vector{T}) where {T}
         LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, args, x_init)
 
         for i=1:length(x_init)
@@ -144,7 +144,6 @@ function ModelFitting(args, x_init, ratdata, ntrials)
     d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
                                 # LL_fg!)
 
-    tic()
     # history = optimize(d4, params, l, u, Fminbox(); 
     #          optimizer = GradientDescent, iterations = 500, linesearch = my_line_search!, optimizer_o = Optim.Options(g_tol = 1e-12,
     #                                                                         x_tol = 1e-32,
@@ -154,18 +153,16 @@ function ModelFitting(args, x_init, ratdata, ntrials)
     #                                                                         show_trace = true,
     #                                                                         extended_trace = true
     #                                                                         ))
-    history = optimize(d4, x_init, l, u, Fminbox(); 
-             optimizer = LBFGS, optimizer_o = Optim.Options(g_tol = 1e-12,
-                                                                            x_tol = 1e-10,
-                                                                            f_tol = 1e-6,                                                                        iterations = 10,
-                                                                            store_trace = true,
-                                                                            show_trace = true,
-                                                                            extended_trace = true))
+    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(
+        g_tol=1e-12,
+        x_tol=1e-10,
+        f_tol=1e-6, iterations=10,
+        store_trace=true,
+        show_trace=true,
+        extended_trace=true))
 
-
-
-
-    fit_time = toc()
+    history = fit_info.value
+    fit_time = fit_info.time
     println(history.minimizer)
     println(history)
 

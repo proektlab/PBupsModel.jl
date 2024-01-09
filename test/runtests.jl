@@ -1,7 +1,8 @@
 # compute models in parallel: multiprocess
+using Distributed
 
-addprocs(Sys.CPU_CORES) # add a worker process per core
-print_with_color(:white, "Setup:\n")
+addprocs(Sys.CPU_THREADS) # add a worker process per core
+printstyled("Setup:\n", color=:white)
 println("  > Using $(nprocs()-1) worker processes")
 n_core = nprocs()-1#2
 
@@ -15,8 +16,9 @@ println(workers())
 
 @everywhere using PBupsModel
 @everywhere using GeneralUtils
-@everywhere using Base.Test
+@everywhere using Test
 @everywhere using MAT
+@everywhere using SharedArrays
 
 # read test data file
 mpath = "data"
@@ -89,7 +91,7 @@ params = [lam, sigma_a, sigma_s, sigma_i, B, phi, tau_phi, bias, lapse]
 
 
 ntrials = 40
-LLs = SharedArray(Float64, ntrials)
+LLs = SharedArray{Float64}(ntrials)
 
 # ===== 9p ===== #
 
@@ -127,7 +129,7 @@ args_12p = ["sigma_a","sigma_s_R","sigma_s_L","sigma_i","lambda","B","bias","phi
 x_12p = [1., 0.1, 50, 0.2, -0.5, 6.1, 0.1, 0.3, 0.1, 0.05*2, 0.2, 0.4]
 
 ntrials = 40
-LLs = SharedArray(Float64, ntrials)
+LLs = SharedArray{Float64}(ntrials)
 # LL = ComputeLL(LLs, ratdata["rawdata"], ntrials, args_12p, x_12p)
 LL = ComputeLL(LLs, ratdata["rawdata"], ntrials
 	;make_dict(args_12p, x_12p)...)

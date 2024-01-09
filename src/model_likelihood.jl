@@ -8,7 +8,7 @@ const total_rate = 40;
 # instead of ForwardDiff.GradientNumber and ForwardDiff.HessianNumber,
 # we will use ForwardDiff.Dual
 
-convert(::Type{Float64}, x::ForwardDiff.Dual) = Float64(x.value)
+convert(::Type{Float64}, x::ForwardDiff.Dual) = convert(Float64, x.value)
 function convert(::Array{Float64}, x::Array{ForwardDiff.Dual})
     y = zeros(size(x));
     for i in 1:prod(size(x))
@@ -17,7 +17,7 @@ function convert(::Array{Float64}, x::Array{ForwardDiff.Dual})
     return y
 end
 
-immutable NumericPair{X,Y} <: Number
+struct NumericPair{X,Y} <: Number
   x::X
   y::Y
 end
@@ -44,7 +44,7 @@ which should be equal to the number of bins with bin centers > 0, as follows:
 and then the total number of bins will be 2*binN+1, with the center one always corresponding
 to position zero. Use non-differentiable types for B and dx for this to work.
 """
-function make_bins{T}(bins::Vector{T}, B, dx::T, binN)
+function make_bins(bins::Vector{T}, B, dx::T, binN) where {T}
     cnt = 1
     for i=-binN:binN
         bins[cnt] = i*dx
@@ -82,7 +82,7 @@ bin_centers should be a vector of the centers of all the bins. Edges will be at 
 dx is not used inside Fmatrix, because bin_centers specifies all we need to know.
 dt *is* used inside Fmatrix, to convert sigma, lambda, and c into timestep units
 """
-function Fmatrix{T}(F::AbstractArray{T,2},params::Vector, bin_centers)
+function Fmatrix(F::AbstractArray{T,2},params::Vector, bin_centers) where {T}
     sigma2 = params[1];
     lam   = params[2];
     c     = params[3];
@@ -100,12 +100,12 @@ function Fmatrix{T}(F::AbstractArray{T,2},params::Vector, bin_centers)
     F[1,1] = 1;
     F[end,end] = 1;
 
-    swidth = 5.*sqrt(sigma2_sbin)
+    swidth = 5. * sqrt(sigma2_sbin)
 
     sbinsize = swidth/n_sbins #sbins[2] - sbins[1]
     base_sbins    = collect(-swidth:sbinsize:swidth)
 
-    ps       = exp(-base_sbins.^2/(2*sigma2)) # exp(Array) -> exp.(x)
+    ps       = exp.(-base_sbins.^2/(2*sigma2)) # exp(Array) -> exp.(x)
     ps       = ps/sum(ps);
 
     sbin_length = length(base_sbins)
@@ -208,10 +208,10 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     Lhere  = zeros(Int, length(LeftClickTimes));
     Rhere = zeros(Int, length(RightClickTimes));
 
-    for i in 1:length(LeftClickTimes)
+    for i in eachindex(LeftClickTimes)
         Lhere[i] = ceil((LeftClickTimes[i]+epsilon)/dt)
     end
-    for i in 1:length(RightClickTimes)
+    for i in eachindex(RightClickTimes)
         Rhere[i] = ceil((RightClickTimes[i]+epsilon)/dt)
     end
 
@@ -249,8 +249,8 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     a0[end] = lapse_R/2;
     a0[binN+1] = 1-lapse_L/2-lapse_R/2;
 
-    temp_l = [NumericPair(LeftClickTimes[i],-1) for i=1:length(LeftClickTimes)]
-    temp_r = [NumericPair(RightClickTimes[i],1) for i=1:length(RightClickTimes)]
+    temp_l = [NumericPair(t,-1) for t in LeftClickTimes]
+    temp_r = [NumericPair(t,1) for t in RightClickTimes]
     allbups = sort!([temp_l; temp_r])
 
     if phi == 1

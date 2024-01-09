@@ -45,12 +45,12 @@ function vector_wrap(bbox, args, eparams)
     local params = two_level_copy(eparams)
     pdict = wallwrap(bbox, make_dict(args, params))
     i=1; j=1
-    for i=1:length(args)
-        if typeof(args[i])<:Array
-            params[j:j+args[i][2]-1] = pdict[Symbol(args[i][1])]
-            j += args[i][2]-1
+    for arg in args
+        if typeof(arg)<:Array
+            params[j:j+arg[2]-1] = pdict[Symbol(arg[1])]
+            j += arg[2]-1
         else
-            params[j] = pdict[Symbol(args[i])]
+            params[j] = pdict[Symbol(arg)]
         end
     j = j+1
     end
@@ -69,12 +69,12 @@ function inverse_wall(bdict, args, wparams)
     local params = two_level_copy(wparams)
     pdict = inverse_wall(bdict, make_dict(args, params))
     i=1; j=1
-    for i=1:length(args)
-        if typeof(args[i])<:Array
-            params[j:j+args[i][2]-1] = pdict[Symbol(args[i][1])]
-            j += args[i][2]-1
+    for arg in args
+        if typeof(arg)<:Array
+            params[j:j+arg[2]-1] = pdict[Symbol(arg[1])]
+            j += arg[2]-1
         else
-            params[j] = pdict[Symbol(args[i])]
+            params[j] = pdict[Symbol(arg)]
         end
         j = j+1
     end
