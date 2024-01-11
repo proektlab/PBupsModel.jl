@@ -154,9 +154,10 @@ function ModelFitting(args, x_init, ratdata, ntrials)
     #                                                                         extended_trace = true
     #                                                                         ))
     fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(
-        g_tol=1e-12,
-        x_tol=1e-10,
-        f_tol=1e-6, iterations=10,
+        g_tol=1e-12, outer_g_tol=1e-12,
+        x_tol=1e-10, outer_x_tol=1e-10,
+        f_tol=1e-6, outer_f_tol=1e-6,
+        iterations=10,
         store_trace=true,
         show_trace=true,
         extended_trace=true))
