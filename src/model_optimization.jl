@@ -72,7 +72,7 @@ function InitParams(args, seed_mode=1)
     return x_val   
 end
 
-function ModelFitting(args, x_init, ratdata, ntrials)
+function GetBounds(args)
     l_b = Dict("sigma_a" => 0., 
         "sigma_s_R" => 0.,
         "sigma_s_L" => 0.,
@@ -108,6 +108,11 @@ function ModelFitting(args, x_init, ratdata, ntrials)
         u[i] = u_b[args[i]] 
     end
 
+    return l, u
+end
+
+function ModelFitting(args, x_init, ratdata, ntrials)
+    l, u = GetBounds(args)
 
     function LL_f(x_init::Vector)
         LLs = SharedArray{Float64}(ntrials)

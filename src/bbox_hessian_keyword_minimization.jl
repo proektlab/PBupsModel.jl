@@ -307,61 +307,7 @@ function error_ellipse(x_bf, hessian, idx)
 # idx : id of parameters to get the covrariance error ellipse
 
     covariance = inv(hessian[idx,idx]);
-
-    eigenval, eigenvec = eig(covariance);
-    println(eigenvec)
-
-    # Get the largest eigenvalue
-    # Get the index of the largest eigenvector
-    largest_eigenval, largest_eigenvec_ind_c = findmax(eigenval);
-    largest_eigenvec = eigenvec[:, largest_eigenvec_ind_c];
-
-
-    # Get the smallest eigenvector and eigenvalue
-    if largest_eigenvec_ind_c == 1
-        smallest_eigenval = eigenval[2]
-        smallest_eigenvec = eigenvec[:,2];
-    else
-        smallest_eigenval = eigenval[1]
-        smallest_eigenvec = eigenvec[1,:];
-    end
-
-    # Calculate the angle between the x-axis and the largest eigenvector
-    angle = atan2(largest_eigenvec[2], largest_eigenvec[1]);
-
-    # This angle is between -pi and pi.
-    # Let's shift it such that the angle is between 0 and 2pi
-    if angle < 0
-        angle = angle + 2*pi;
-    end
-
-
-    # % Get the 95% confidence interval error ellipse
-    chisquare_val_95 = 2.1459;
-
-
-    theta_grid = linspace(0,2*pi,200);
-    phi = angle;
-
-    # % x0,y0 ellipse centre coordinates
-    X0=x_bf[idx[1]];
-    Y0=x_bf[idx[2]];
-    a=sqrt(largest_eigenval);
-    b=sqrt(smallest_eigenval);
-
-    # % the ellipse in x and y coordinates
-    ellipse_x_r  = chisquare_val_95*a*cos.( theta_grid );
-    ellipse_y_r  = chisquare_val_95*b*sin.( theta_grid );
-
-    # %Define a rotation matrix
-    R = [ cos(phi) sin(phi); -sin(phi) cos(phi) ];
-
-    # let's rotate the ellipse to some angle phi
-    r_ellipse = [ellipse_x_r ellipse_y_r] * R;
-
-    Xs = r_ellipse[:,1] + X0
-    Ys = r_ellipse[:,2] + Y0
-    return Xs,Ys
+    return error_ellipse_cov(x_bf, covariance, idx)
 end
 
 function error_ellipse_cov(x_bf, covariance, idx)
@@ -383,10 +329,8 @@ function error_ellipse_cov(x_bf, covariance, idx)
     # Get the smallest eigenvector and eigenvalue
     if largest_eigenvec_ind_c == 1
         smallest_eigenval = eigenval[2]
-        smallest_eigenvec = eigenvec[:,2];
     else
         smallest_eigenval = eigenval[1]
-        smallest_eigenvec = eigenvec[1,:];
     end
 
     # Calculate the angle between the x-axis and the largest eigenvector
@@ -403,7 +347,7 @@ function error_ellipse_cov(x_bf, covariance, idx)
     chisquare_val_95 = 2.1459;
 
 
-    theta_grid = linspace(0,2*pi,200);
+    theta_grid = range(0,2*pi,200);
     phi = angle;
 
     # % x0,y0 ellipse centre coordinates

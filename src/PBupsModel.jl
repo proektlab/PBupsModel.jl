@@ -38,6 +38,7 @@ export
 
 # optimization
     InitParams,
+    GetBounds,
     ModelFitting,
     FitSummary
 
