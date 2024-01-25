@@ -118,7 +118,7 @@ end
 
 "Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant"
 function ModelFitting(fitparams, ratdata, ntrials;
-        fixedparams::NamedTuple = (), iterative_hessian=false, optim_overrides=())
+        fixedparams::NamedTuple = (), iterative_hessian=false, optim_overrides=(;))
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
     l, u = GetBounds(fitargs)
 

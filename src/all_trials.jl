@@ -30,7 +30,7 @@ function ComputeLL_bbox(ratdata, ntrials::Int#, args, x::Vector{T})
 end
 
 """Compute gradient on fitparams while setting fixedparams to the given values (overriding defaults)"""
-function ComputeGrad(ratdata, ntrials::Int, fitparams, fixedparams=())
+function ComputeGrad(ratdata, ntrials::Int, fitparams, fixedparams=(;))
     do_hess = false
     gradfn = (;params...) -> ComputeLL_bbox(ratdata, ntrials; params..., fixedparams...)
     LL, LLgrad = GeneralUtils.keyword_vgh(gradfn, do_hess; fitparams...)
@@ -42,7 +42,7 @@ function ComputeGrad(ratdata, ntrials::Int, args, x::Vector{T}) where {T}
 end
 
 """Compute hessian on fitparams while setting fixedparams to the given values (overriding defaults)"""
-function ComputeHess(ratdata, ntrials::Int, fitparams, fixedparams=())
+function ComputeHess(ratdata, ntrials::Int, fitparams, fixedparams=(;))
     do_hess = true
     hessfn = (;params...) -> CopmputeLL_bbox(ratdata, ntrials; params..., fixedparams...)
     LL, LLgrad, LLhess = GeneralUtils.keyword_vgh(hessfn, do_hess; fitparams...)
@@ -105,7 +105,7 @@ function ComputeHessIterative(ratdata, ntrials::Int, args, x0::Vector{T}; kwargs
 end
 
 "Compute Hessian of DDM LL using iterative method while setting fixedparams to the given values (overriding defaults)"
-function ComputeHessIterative(ratdata, ntrials::Int, fitparams, fixedparams=(); kwargs...)
+function ComputeHessIterative(ratdata, ntrials::Int, fitparams, fixedparams=(;); kwargs...)
     fitargs, x0 = GeneralUtils.to_args_format(fitparams)
     f = x -> ComputeLL_bbox(ratdata, ntrials; make_dict(fitargs, x)..., fixedparams...)
     return ComputeHessIterative(f, x0; kwargs...)
