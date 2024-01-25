@@ -120,7 +120,7 @@ end
 function ModelFitting(fitparams, ratdata, ntrials;
         fixedparams::NamedTuple = (), iterative_hessian=false, optim_overrides=(;))
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
-    l, u = GetBounds(fitargs)
+    l, u = GetBounds(string.(fitargs))
 
     function LL_f(x::Vector)
         LLs = SharedArray{Float64}(ntrials)
@@ -165,7 +165,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
     #                                                                         show_trace = true,
     #                                                                         extended_trace = true
     #                                                                         ))
-    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(
+    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;
         g_tol=1e-12, outer_g_tol=1e-12,
         x_tol=1e-10, outer_x_tol=1e-10,
         f_tol=1e-6, outer_f_tol=1e-6,
