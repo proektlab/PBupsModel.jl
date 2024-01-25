@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "713b5287537ac41a16af80625a0b811f8997cc25"
+project_hash = "aff3a4475e505164d34ed463df5df332b390591f"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -189,7 +189,7 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GeneralUtils]]
 deps = ["DiffResults", "ForwardDiff", "LinearAlgebra", "Pkg", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "d05809c0b87fbd9e7340ab09d51eb666f914373b"
+git-tree-sha1 = "50e34a93e45db32e160a6e8ed49b10f1538484c3"
 repo-rev = "master"
 repo-url = "https://github.com/proektlab/GeneralUtils.jl"
 uuid = "231aaf3f-2fc4-4f71-8305-14bd9a8f62f1"

@@ -34,6 +34,7 @@ export
     ComputeLL_bbox,
     ComputeGrad,
     ComputeHess,
+    ComputeHessIterative,
     TrialsLikelihood,
 
 # optimization

@@ -170,9 +170,9 @@ Takes params
 Returns the log of the probability that the agent chose Right.
 """
 function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{Float64,1}, Nsteps::Int
-    ;sigma_a = 0.01, sigma_s_R = 0.01, sigma_s_L = 0.01,
+    ;sigma_a = 0.01, sigma_s_R = nothing, sigma_s_L = nothing,
     sigma_i = 0.01, lambda = 0., B = 8., bias = 0.,
-    phi = 1., tau_phi = 0.02, lapse_R = 0.01, lapse_L = 0.01,
+    phi = 1., tau_phi = 0.02, lapse_R = nothing, lapse_L = nothing,
     input_gain_weight = 0.5)
 
 # now it considers 12p/9p function
@@ -180,23 +180,31 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
 
     # check whether sigma_S_L/sigma_S_R are specified
     # 1. set one of them as sigma_s
-    if xor(sigma_s_R!=0.01, sigma_s_L!=0.01) 
-        if sigma_s_R!=0.01  
-            sigma_s_L=sigma_s_R
-        elseif sigma_s_L!=0.01  
-            sigma_s_R=sigma_s_L
-        end    
+    sigma_s_default = 0.01
+    if isnothing(sigma_s_R)
+        if isnothing(sigma_s_L)
+            sigma_s_R = sigma_s_default
+            sigma_s_L = sigma_s_default
+        else
+            sigma_s_R = sigma_s_L
+        end
+    elseif isnothing(sigma_s_L)
+        sigma_s_L = sigma_s_R
     end
 
     # same for lapse
     # check whether lapse_L/lapse_R are specified
     # 1. set one of them as lapse
-    if xor(lapse_R!=0.01, lapse_L!=0.01) 
-        if lapse_R!=0.01  
-            lapse_L=lapse_R
-        elseif lapse_L!=0.01  
-            lapse_R=lapse_L
-        end    
+    lapse_default = 0.01
+    if isnothing(lapse_R)
+        if isnothing(lapse_L)
+            lapse_R = lapse_default
+            lapse_L = lapse_default
+        else
+            lapse_R = lapse_L
+        end
+    elseif isnothing(lapse_L)
+        lapse_L = lapse_R
     end
 
 # function logProbRight(params::Vector, RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{Float64,1}, Nsteps::Int)

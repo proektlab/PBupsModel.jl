@@ -111,29 +111,36 @@ function GetBounds(args)
     return l, u
 end
 
-function ModelFitting(args, x_init, ratdata, ntrials)
-    l, u = GetBounds(args)
 
-    function LL_f(x_init::Vector)
+function ModelFitting(args, x_init::Vector, ratdata, ntrials; kwargs...)
+    return ModelFitting(make_dict(args, x_init), ratdata, ntrials; kwargs...)
+end
+
+"Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant"
+function ModelFitting(fitparams, ratdata, ntrials;
+        fixedparams::NamedTuple = (), iterative_hessian=false, optim_overrides=())
+    fitargs, x_init = GeneralUtils.to_args_format(fitparams)
+    l, u = GetBounds(fitargs)
+
+    function LL_f(x::Vector)
         LLs = SharedArray{Float64}(ntrials)
         # return ComputeLL(LLs, ratdata["rawdata"], ntrials, args, x_init)
-        return ComputeLL(LLs, ratdata["rawdata"], ntrials
-            ;make_dict(args, x_init)...)
+        return ComputeLL(LLs, ratdata["rawdata"], ntrials; make_dict(fitargs, x)..., fixedparams...)
     end
 
     # updated for julia v0.6 (in-place order)
-    function LL_g!(grads::Vector{T}, x_init::Vector{T}) where {T}
-        LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, args, x_init)
+    function LL_g!(grads::Vector{T}, x::Vector{T}) where {T}
+        _, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
 
-        for i=1:length(x_init)
+        for i=1:length(x)
             grads[i] = LLgrad[i]
         end
     end
 
-    function LL_fg!(x_init::Vector, grads)
-        LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, args, x_init)
+    function LL_fg!(x::Vector, grads)
+        LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
 
-        for i=1:length(x_init)
+        for i=1:length(x)
             grads[i] = LLgrad[i]
         end
         return LL
@@ -165,7 +172,8 @@ function ModelFitting(args, x_init, ratdata, ntrials)
         iterations=10,
         store_trace=true,
         show_trace=true,
-        extended_trace=true))
+        extended_trace=true,
+        optim_overrides...))
 
     history = fit_info.value
     fit_time = fit_info.time
@@ -176,8 +184,12 @@ function ModelFitting(args, x_init, ratdata, ntrials)
     # likely_all = zeros(typeof(sigma_i),ntrials)
     x_bf = history.minimizer #.minimum
     # Likely_all_trials(likely_all, x_bf, ratdata["rawdata"], ntrials)
-    # LL, LLgrad, LLhess = ComputeHess(x_bf, ratdata["rawdata"], ntrials)
-    LL, LLgrad, LLhess = ComputeHess(ratdata["rawdata"], ntrials, args, x_bf)
+
+    if iterative_hessian
+        LLhess = ComputeHessIterative(ratdata["rawdata"], ntrials, make_dict(args, x_bf), fixedparams)
+    else
+        _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(args, x_bf), fixedparams)
+    end
 
     Gs = zeros(length(history.trace),length(x_init))
     Xs = zeros(length(history.trace),length(x_init))
