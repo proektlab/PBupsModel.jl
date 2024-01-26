@@ -72,7 +72,8 @@ function InitParams(args, seed_mode=1)
     return x_val   
 end
 
-function GetBounds(args)
+function GetBounds(args;
+    lb_overrides::Dict{String, <:AbstractFloat}=Dict(), ub_overrides::Dict{String, <:AbstractFloat}=Dict())
     l_b = Dict("sigma_a" => 0., 
         "sigma_s_R" => 0.,
         "sigma_s_L" => 0.,
@@ -85,6 +86,7 @@ function GetBounds(args)
         "lapse_R" => 0.,
         "lapse_L" => 0.,
         "input_gain_weight" => 0.)
+    merge!(l_b, lb_overrides)
 
     u_b = Dict("sigma_a" => 200., 
         "sigma_s_R" => 200.,
@@ -98,7 +100,7 @@ function GetBounds(args)
         "lapse_R" => 1.,
         "lapse_L" => 1.,
         "input_gain_weight" => 1.)
-
+    merge!(u_b, ub_overrides)
 
     l = zeros(length(args))
     u = zeros(length(args))
@@ -118,9 +120,10 @@ end
 
 "Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant"
 function ModelFitting(fitparams, ratdata, ntrials;
-        fixedparams::NamedTuple = (), iterative_hessian=false, optim_overrides=(;))
+        fixedparams::NamedTuple = (;), iterative_hessian=false, optim_overrides=(;),
+        lb_overrides::Dict{String, <:AbstractFloat} = Dict(), ub_overrides::Dict{String, <:AbstractFloat} = Dict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
-    l, u = GetBounds(string.(fitargs))
+    l, u = GetBounds(fitargs; lb_overrides=lb_overrides, ub_overrides=ub_overrides)
 
     function LL_f(x::Vector)
         LLs = SharedArray{Float64}(ntrials)

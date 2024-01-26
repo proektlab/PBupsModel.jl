@@ -189,7 +189,7 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GeneralUtils]]
 deps = ["DiffResults", "ForwardDiff", "LinearAlgebra", "Pkg", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "50e34a93e45db32e160a6e8ed49b10f1538484c3"
+git-tree-sha1 = "437f217eb554be35b38aa8e9c385f8f694e2419c"
 repo-rev = "master"
 repo-url = "https://github.com/proektlab/GeneralUtils.jl"
 uuid = "231aaf3f-2fc4-4f71-8305-14bd9a8f62f1"
