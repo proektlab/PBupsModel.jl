@@ -44,7 +44,7 @@ end
 """Compute hessian on fitparams while setting fixedparams to the given values (overriding defaults)"""
 function ComputeHess(ratdata, ntrials::Int, fitparams, fixedparams=(;))
     do_hess = true
-    hessfn = (;params...) -> CopmputeLL_bbox(ratdata, ntrials; params..., fixedparams...)
+    hessfn = (;params...) -> ComputeLL_bbox(ratdata, ntrials; params..., fixedparams...)
     LL, LLgrad, LLhess = GeneralUtils.keyword_vgh(hessfn, do_hess; fitparams...)
     return LL, LLgrad, LLhess
 end

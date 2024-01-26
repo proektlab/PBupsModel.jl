@@ -186,9 +186,9 @@ function ModelFitting(fitparams, ratdata, ntrials;
     # Likely_all_trials(likely_all, x_bf, ratdata["rawdata"], ntrials)
 
     if iterative_hessian
-        LLhess = ComputeHessIterative(ratdata["rawdata"], ntrials, make_dict(args, x_bf), fixedparams)
+        LLhess = ComputeHessIterative(ratdata["rawdata"], ntrials, make_dict(fitargs, x_bf), fixedparams)
     else
-        _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(args, x_bf), fixedparams)
+        _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x_bf), fixedparams)
     end
 
     Gs = zeros(length(history.trace),length(x_init))
@@ -203,7 +203,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
     end
 
     D = Dict([("x_init",x_init),    
-                ("parameters",args),
+                ("parameters",fitargs),
                 ("trials",ntrials),
                 ("f",history.minimum), 
                 ("x_converged",history.x_converged),
