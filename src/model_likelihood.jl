@@ -44,20 +44,15 @@ which should be equal to the number of bins with bin centers > 0, as follows:
 and then the total number of bins will be 2*binN+1, with the center one always corresponding
 to position zero. Use non-differentiable types for B and dx for this to work.
 """
-function make_bins(bins::Vector{T}, B, dx::T, binN) where {T}
+function make_bins(bins, B, dx, binN)
     cnt = 1
     for i=-binN:binN
         bins[cnt] = i*dx
         cnt = cnt+1
     end
 
-    if binN*dx == B
-        bins[end] = B + dx
-        bins[1] = -B - dx
-    else
-        bins[end] = 2*B - (binN-1)*dx
-        bins[1] = -2*B + (binN-1)*dx
-    end
+    bins[end] = 2*B - (binN-1)*dx
+    bins[1] = -2*B + (binN-1)*dx
 end
 
 """
@@ -249,7 +244,7 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     if binBias_hp<1 binBias_hp = 1; end
     if binBias_hp>binN*2+1 binBias_hp = binN*2+1; end
 
-    bin_centers = zeros(typeof(dx), binN*2+1)
+    bin_centers = zeros(typeof(B), binN*2+1)
     make_bins(bin_centers, B, dx, binN)
 
     # Visualization
