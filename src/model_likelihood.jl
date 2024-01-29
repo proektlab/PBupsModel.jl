@@ -288,37 +288,27 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
             c_eff_net = 0.
             a = F0*a
         else
-            for j in 1:NClicks[i-1]
-                if cnt != 0 || j != 1
-                    ici = allbups[cnt+j].x - allbups[cnt+j-1].x
-
-                    c_eff = 1 + (c_eff*phi - 1)*exp(-ici/tau_phi)
-                    c_eff_tot = c_eff_tot + c_eff
-                    c_eff_net = c_eff_net + c_eff*allbups[cnt+j].y
-
-                    ## (input_gain_weight) 0 to 1 : 0-left, 1-right
-                    net_c_input = (c_eff_tot+c_eff_net)/2 # right
-                    net_i_input = c_eff_tot-net_c_input # left
-
-                    net_input = 2*input_gain_weight*net_c_input - 2*(1-input_gain_weight)*net_i_input
-                elseif cnt==0 && j==1
-                    ici = 0.
-                    c_eff = 1 + (c_eff*phi - 1)*exp(-ici/tau_phi)
-
-                    c_eff_tot = c_eff_tot + c_eff
-                    c_eff_net = c_eff_net + c_eff*allbups[cnt+j].y
-
-                    ## (input_gain_weight) 0 to 1 : 0-left, 1-right 
-                    # 0.5 is neutral 
-                    net_c_input = (c_eff_tot+c_eff_net)/2 # right
-                    net_i_input = c_eff_tot-net_c_input # left
-
-                    net_input = 2*input_gain_weight*net_c_input - 2*(1-input_gain_weight)*net_i_input
-                end
-                if j == NClicks[i-1]
-                    cnt = cnt+j
-                end
+            if cnt == 0
+                c_eff = 1.
+            else
+                last_time = allbups[cnt].x
+                ici = allbups[cnt+1].x - last_time
+                c_eff = 1 + (c_eff*phi - 1) * exp(-ici/tau_phi)
             end
+
+            for j in 1:NClicks[i-1]
+                c_eff_tot = c_eff_tot + c_eff
+                c_eff_net = c_eff_net + c_eff*allbups[cnt+j].y
+
+                ## (input_gain_weight) 0 to 1 : 0-left, 1-right 
+                # 0.5 is neutral 
+                net_c_input = (c_eff_tot+c_eff_net)/2 # right
+                net_i_input = c_eff_tot-net_c_input # left
+
+                net_input = 2*input_gain_weight*net_c_input - 2*(1-input_gain_weight)*net_i_input
+            end
+
+            cnt += NClicks[i-1]
 
             ## biased params added
             net_sigma = sigma_a*dt + (sigma_s_R*net_i_input)/total_rate + (sigma_s_L*net_c_input)/total_rate
