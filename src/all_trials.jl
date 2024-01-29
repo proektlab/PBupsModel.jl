@@ -13,9 +13,15 @@ function ComputeLL(LLs::SharedArray, ratdata, ntrials::Int#, args, x::Vector{T})
         RightClickTimes, LeftClickTimes, maxT, rat_choice = TrialData(ratdata, i)
         Nsteps = Int(ceil(maxT/dt))
 
-        # LLs[i] = LogLikelihood(params, RightClickTimes, LeftClickTimes, Nsteps, rat_choice)
-        LLs[i] = LogLikelihood(RightClickTimes, LeftClickTimes, Nsteps, rat_choice
-                ;kwargs...)#make_dict(args, x)...)
+        try
+            LLs[i] = LogLikelihood(RightClickTimes, LeftClickTimes, Nsteps, rat_choice ;kwargs...)
+        catch e
+            if isa(e, InvalidStateException) && e.state == :probRightOutsideRange
+                println("Current trial: $(i)")
+                println("Current parameters: $(kwargs)")
+            end
+            rethrow()
+        end
     end
 
     LL = -sum(LLs)

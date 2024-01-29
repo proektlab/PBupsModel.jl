@@ -235,17 +235,19 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # ceil(Int, ForwardDiff.Dual)
 
     binN = ceil(Int, B/dx)#Int(ceil(my_B/dx))
-    binBias = floor(Int, bias/dx) + binN+1
-    binBias_hp = ceil(Int, bias/dx) + binN+1
-
-    if binBias<1 binBias = 1; end
-    if binBias>binN*2+1 binBias = binN*2+1; end
-
-    if binBias_hp<1 binBias_hp = 1; end
-    if binBias_hp>binN*2+1 binBias_hp = binN*2+1; end
-
     bin_centers = zeros(typeof(B), binN*2+1)
     make_bins(bin_centers, B, dx, binN)
+
+    biasClamped = clamp(bias, bin_centers[1], bin_centers[end])
+    binBias = floor(Int, biasClamped/dx) + binN+1
+    binBias_hp = ceil(Int, biasClamped/dx) + binN+1
+
+    # should be covered by clamping the bias
+    # if binBias<1 binBias = 1; end
+    # if binBias>binN*2+1 binBias = binN*2+1; end
+
+    # if binBias_hp<1 binBias_hp = 1; end
+    # if binBias_hp>binN*2+1 binBias_hp = binN*2+1; end
 
     # Visualization
     a_trace = zeros(length(bin_centers), Nsteps)
@@ -321,19 +323,17 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     end
 
     # likelihood of poking right
-    if binBias == binBias_hp
-      pright = sum(a[binBias+1:end])+a[binBias]/2
-    else
-      pright = sum(a[binBias+2:end]) +
-      a[binBias]*((bin_centers[binBias+1] - bias)/dx/2) +
-      a[binBias+1]*(0.5 + (bin_centers[binBias+1] - bias)/dx/2)
+    # split difference between bins above and below bias (possibly the same)
+    # eps is to make sure we get gradient from bias on both bins if we're on the boundary
+    # elimintated if statement to make sure we get gradient even when bias is on a bin center (should still work)
+    pright = sum(a[binBias_hp+1:end]) +
+    a[binBias]   * (max((bin_centers[binBias_hp] - bias)/dx, 0.5 - eps(1.)) - 0.5) +
+    a[binBias_hp] * (min((bin_centers[binBias_hp] - bias)/dx, 0.5 + eps(1.)) + 0.5)
+
+    if pright - 1. > eps(1.) || -pright > eps(1.)
+        throw(InvalidStateException("Probability of right turn ($(pright)) outside [0, 1]", :probRightOutsideRange))
     end
-    if pright-1 < epsilon && pright > 1
-        pright = 1
-    end
-    if pright < epsilon && pright > 0
-        pright = 0
-    end
+    pright = clamp(pright, 0., 1.)
     
     return log(pright)
 end
