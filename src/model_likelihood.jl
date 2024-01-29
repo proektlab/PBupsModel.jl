@@ -235,19 +235,12 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # ceil(Int, ForwardDiff.Dual)
 
     binN = ceil(Int, B/dx)#Int(ceil(my_B/dx))
+    if B % dx == 0
+        binN += 1  # need extra bin for "past bound" (will be at same location as second-to-last bin)
+    end
+
     bin_centers = zeros(typeof(B), binN*2+1)
     make_bins(bin_centers, B, dx, binN)
-
-    biasClamped = clamp(bias, bin_centers[1], bin_centers[end])
-    binBias = floor(Int, biasClamped/dx) + binN+1
-    binBias_hp = ceil(Int, biasClamped/dx) + binN+1
-
-    # should be covered by clamping the bias
-    # if binBias<1 binBias = 1; end
-    # if binBias>binN*2+1 binBias = binN*2+1; end
-
-    # if binBias_hp<1 binBias_hp = 1; end
-    # if binBias_hp>binN*2+1 binBias_hp = binN*2+1; end
 
     # Visualization
     a_trace = zeros(length(bin_centers), Nsteps)
@@ -325,17 +318,58 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # likelihood of poking right
     # split difference between bins above and below bias (possibly the same)
     # eps is to make sure we get gradient from bias on both bins if we're on the boundary
-    # elimintated if statement to make sure we get gradient even when bias is on a bin center (should still work)
-    pright = sum(a[binBias_hp+1:end]) +
-    a[binBias]   * (max((bin_centers[binBias_hp] - bias)/dx, 0.5 - eps(1.)) - 0.5) +
-    a[binBias_hp] * (min((bin_centers[binBias_hp] - bias)/dx, 0.5 + eps(1.)) + 0.5)
+    # elimintated if statement to make sure we get gradient even when bias is on a bin center (should still work)\
+    biasclamped = clamp(bias, B, -B)
+    pright = upperprob(bin_centers, a, biasclamped)
 
     if pright - 1. > eps(1.) || -pright > eps(1.)
-        throw(InvalidStateException("Probability of right turn ($(pright)) outside [0, 1]", :probRightOutsideRange))
+        throw(InvalidStateException("Probability of right turn ($(convert(Float64, pright))) outside [0, 1]", :probRightOutsideRange))
     end
     pright = clamp(pright, 0., 1.)
     
     return log(pright)
+end
+
+"""
+Compute pright based on bin locations, a and the bias
+Precondition: bias ∈ [-B, B]
+"""
+function upperprob(bin_centers::Array, a::Array, bias)
+    nbins = length(bin_centers)
+    centerbin = (nbins + 1) ÷ 2
+
+    lowerbin = floor(Int, bias/dx) + centerbin
+    upperbin = ceil(Int, bias/dx) + centerbin
+
+    # # should be covered by clamping the bias
+    # if lowerbin<1 lowerbin = 1; end
+    # if lowerbin>binN*2+1 lowerbin = binN*2+1; end
+
+    # if upperbin<1 upperbin = 1; end
+    # if upperbin>binN*2+1 upperbin = binN*2+1; end
+
+    if upperbin == nbins  # will not occur if dx_end == 0 - will be nbins-1 instead
+        # For space b/w last 2 bins, don't use the trapezoidal approximation
+        # so that all the probability mass above B counts as certain to turn right and vice versa
+        probatlower = upperprob(bin_centers, a, bin_centers[end-1])
+        return probatlower - a[end-1] * (bias-bin_centers[end-1]) * 2 / (bin_centers[end] - bin_centers[end-2])
+    elseif lowerbin == 1
+        # symmetric to above
+        probatupper = upperprob(bin_centers, a, bin_centers[2])
+        return probatupper + a[2] * (bin_centers[2]-bias) * 2 / (bin_centers[3] - bin_centers[1])
+    end
+
+    # account for asymmetric probability mass of bins second from end
+    # neither upperbin nor lowerbin should be at the end here
+    # works when there are only 3 bins and lowerbin == upperbin.
+    upperbin_centerloc = (bin_centers[upperbin] - bin_centers[upperbin-1]) / (bin_centers[upperbin+1] - bin_centers[upperbin-1])
+    lowerbin_centerloc = (bin_centers[lowerbin] - bin_centers[lowerbin-1]) / (bin_centers[lowerbin+1] - bin_centers[lowerbin-1])
+
+    fromupper = (bin_centers[upperbin] - bias) / dx
+    pright = sum(a[upperbin+1:end]) + (1-upperbin_centerloc) * a[upperbin] +
+        fromupper * (upperbin_centerloc * a[upperbin] + (1-lowerbin_centerloc) * a[lowerbin])
+
+    return pright
 end
 
 function LogLikelihood(RightClickTimes::Vector, LeftClickTimes::Vector, Nsteps::Int, rat_choice::Int
