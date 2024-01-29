@@ -296,28 +296,26 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
                 c_eff = 1 + (c_eff*phi - 1) * exp(-ici/tau_phi)
             end
 
+            c_eff_tot += c_eff * NClicks[i-1]
             for j in 1:NClicks[i-1]
-                c_eff_tot = c_eff_tot + c_eff
                 c_eff_net = c_eff_net + c_eff*allbups[cnt+j].y
-
-                ## (input_gain_weight) 0 to 1 : 0-left, 1-right 
-                # 0.5 is neutral 
-                net_c_input = (c_eff_tot+c_eff_net)/2 # right
-                net_i_input = c_eff_tot-net_c_input # left
-
-                net_input = 2*input_gain_weight*net_c_input - 2*(1-input_gain_weight)*net_i_input
             end
 
-            cnt += NClicks[i-1]
+            net_c_input = (c_eff_tot+c_eff_net)/2 # right
+            net_i_input = c_eff_tot-net_c_input # left
+
+            # (input_gain_weight) 0 to 1 : 0-left, 1-right 
+            # 0.5 is neutral 
+            net_input = 2*input_gain_weight*net_c_input - 2*(1-input_gain_weight)*net_i_input
 
             ## biased params added
             net_sigma = sigma_a*dt + (sigma_s_R*net_i_input)/total_rate + (sigma_s_L*net_c_input)/total_rate
             F = zeros(typeof(net_sigma),length(bin_centers),length(bin_centers))
             Fmatrix(F,[net_sigma, lambda, net_input/dt], bin_centers)
             a = F*a
-
         end
 
+        cnt += NClicks[i-1]
         a_trace[:,i] = a
         c_trace[i] = c_eff*exp(lambda*dt)
     end
