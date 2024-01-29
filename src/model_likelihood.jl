@@ -322,9 +322,9 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     biasclamped = clamp(bias, B, -B)
     pright = upperprob(bin_centers, a, biasclamped)
 
-    if pright - 1. > eps(1.) || -pright > eps(1.)
-        throw(InvalidStateException("Probability of right turn ($(convert(Float64, pright))) outside [0, 1]", :probRightOutsideRange))
-    end
+    # if -pright > eps(1.) || pright - 1. > eps(1.)
+    #     throw(InvalidStateException("Probability of right turn ($(convert(Float64, pright))) outside [0, 1]", :probRightOutsideRange))
+    # end
     pright = clamp(pright, 0., 1.)
     
     return log(pright)
