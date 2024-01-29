@@ -125,6 +125,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
         fixedparams::NamedTuple = (;), iterative_hessian=false, optim_overrides=(;),
         lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
+    println("Fitting parameters: $(fitargs)")
     l, u = GetBounds(fitargs; lb_overrides=lb_overrides, ub_overrides=ub_overrides)
 
     function LL_f(x::Vector)
