@@ -4,6 +4,8 @@
 
 # utilize make_dict and defaults.
 
+const ParamDict = Dict{String, Float64}
+
 function InitParams(args, seed_mode=1)
 
     # Parameters (match the parameter order with original code)
@@ -73,7 +75,7 @@ function InitParams(args, seed_mode=1)
 end
 
 function GetBounds(args;
-    lb_overrides::Dict{String, <:AbstractFloat}=Dict(), ub_overrides::Dict{String, <:AbstractFloat}=Dict())
+    lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     l_b = Dict("sigma_a" => 0., 
         "sigma_s_R" => 0.,
         "sigma_s_L" => 0.,
@@ -121,7 +123,7 @@ end
 "Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant"
 function ModelFitting(fitparams, ratdata, ntrials;
         fixedparams::NamedTuple = (;), iterative_hessian=false, optim_overrides=(;),
-        lb_overrides::Dict{String, <:AbstractFloat} = Dict(), ub_overrides::Dict{String, <:AbstractFloat} = Dict())
+        lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
     l, u = GetBounds(fitargs; lb_overrides=lb_overrides, ub_overrides=ub_overrides)
 
