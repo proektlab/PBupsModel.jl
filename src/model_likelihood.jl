@@ -144,6 +144,7 @@ function Fmatrix(F::AbstractArray{T,2},params::Vector, bin_centers) where {T}
                 end
             end
         end
+        F[:, j] /= sum(F[:, j])
     end
 end
 
@@ -308,6 +309,7 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
             F = zeros(typeof(net_sigma),length(bin_centers),length(bin_centers))
             Fmatrix(F,[net_sigma, lambda, net_input/dt], bin_centers)
             a = F*a
+            a /= sum(a)
         end
 
         cnt += NClicks[i-1]
