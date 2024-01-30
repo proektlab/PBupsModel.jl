@@ -171,11 +171,11 @@ function ModelFitting(fitparams, ratdata, ntrials;
 
     # d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
     d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
-    opts = Optim.Options(;
+    opts = (;
         g_tol=1e-12, outer_g_tol=1e-12,
         x_tol=1e-10, outer_x_tol=1e-10,
         f_tol=1e-6, outer_f_tol=1e-6,
-        iterations=10,
+        iterations=10,  # inner
         store_trace=true,
         show_trace=true,
         extended_trace=true,
@@ -241,16 +241,21 @@ function ModelFitting(fitparams, ratdata, ntrials;
     return D
 end
 
-function optimize_ddm(::Val{:lbfgs}, d4, l, u, x_init, opts::Optim.Options)
-    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), opts)
+function optimize_ddm(::Val{:lbfgs}, d4, l, u, x_init, opts::NamedTuple)
+    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
 end
 
-function optimize_ddm(::Val{:ipnewton}, d4, l, u, x_init, opts::Optim.Options)
+function optimize_ddm(::Val{:ipnewton}, d4, l, u, x_init, opts::NamedTuple)
+    # remove iterations b/c it is only supposed to be for the inner optimizer, which this method doesn't use
+    opts = Base.structdiff(opts, (;iterations=nothing))
+    if haskey(opts, :outer_iterations)
+        opts = (;opts..., iterations=opts.outer_iterations)
+    end
     d4c = TwiceDifferentiableConstraints(l, u)
-    fit_info = @timed optimize(d4, d4c, x_init, IPNewton(), opts)
+    fit_info = @timed optimize(d4, d4c, x_init, IPNewton(), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
