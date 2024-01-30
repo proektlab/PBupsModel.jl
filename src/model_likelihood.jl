@@ -167,7 +167,7 @@ Returns the log of the probability that the agent chose Right.
 """
 function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{Float64,1}, Nsteps::Int
     ;sigma_a = 0.01, sigma_s_R = nothing, sigma_s_L = nothing,
-    sigma_i = 0.01, lambda = 0., B = 8., bias = 0.,
+    sigma_i = 0.01, lambda = 0., B = 8., bias = nothing, bias_rel = 0.,
     phi = 1., tau_phi = 0.02, lapse_R = nothing, lapse_L = nothing,
     input_gain_weight = 0.5)
 
@@ -203,12 +203,12 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
         lapse_L = lapse_R
     end
 
-# function logProbRight(params::Vector, RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{Float64,1}, Nsteps::Int)
-#     sigma_a = params[1]; sigma_s_R = params[2]; sigma_s_L = params[3];
-#     sigma_i = params[4]; lambda = params[5]; B = params[6]; bias = params[7];
-#     phi = params[8]; tau_phi = params[9]; lapse_R = params[10]; lapse_L = params[11];
-#     input_gain_weight = params[12];
-
+    # bias - use bias_rel (to keep between -B and B) unless bias is directly given
+    if isnothing(bias)
+        bias = bias_rel * B
+    else
+        bias = clamp(bias, -B, B)
+    end
 
     if isempty(RightClickTimes) RightClickTimes = zeros(0) end;
     if isempty(LeftClickTimes ) LeftClickTimes  = zeros(0) end;
@@ -321,8 +321,7 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # split difference between bins above and below bias (possibly the same)
     # eps is to make sure we get gradient from bias on both bins if we're on the boundary
     # elimintated if statement to make sure we get gradient even when bias is on a bin center (should still work)\
-    biasclamped = clamp(bias, -B, B)
-    pright = upperprob(bin_centers, a, biasclamped)
+    pright = upperprob(bin_centers, a, bias)
 
     # if -pright > eps(1.) || pright - 1. > eps(1.)
     #     throw(InvalidStateException("Probability of right turn ($(convert(Float64, pright))) outside [0, 1]", :probRightOutsideRange))

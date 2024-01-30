@@ -27,6 +27,7 @@ function InitParams(args, seed_mode=1)
         "lapse_R" => rand()*.5,
         "lapse_L" => rand()*.5,
         "input_gain_weight" => rand())
+        rseed_param["bias_rel"] = rseed_param["bias"] / rseed_param["B"]
 
         for i in eachindex(args)
             x_val[i] = rseed_param[args[i]]
@@ -46,6 +47,7 @@ function InitParams(args, seed_mode=1)
         "lapse_R" => 0.0613,
         "lapse_L" => 0.0613,
         "input_gain_weight" => 0.5)
+        defaults_param["bias_rel"] = defaults_param["bias"] / defaults_param["B"]
 
         for i in eachindex(args)
             x_val[i] = defaults_param[args[i]]
@@ -65,6 +67,7 @@ function InitParams(args, seed_mode=1)
         "lapse_R" => 0.1,
         "lapse_L" => 0.1,
         "input_gain_weight" => 0.5)
+        simple_param["bias_rel"] = simple_param["bias"] / simple_param["B"]
 
         for i in eachindex(args)
             x_val[i] = simple_param[args[i]]
@@ -83,6 +86,7 @@ function GetBounds(args;
         "lambda" => -5.,
         "B" => 5.,
         "bias" => -5.,
+        "bias_rel" => -1.,
         "phi" => 0.01,
         "tau_phi" => 0.005,
         "lapse_R" => 0.,
@@ -97,6 +101,7 @@ function GetBounds(args;
         "lambda" => 5.,
         "B" => 25.,
         "bias" => 5.,
+        "bias_rel" => 1.,
         "phi" => 1.2,
         "tau_phi" => 1.5,
         "lapse_R" => 1.,
