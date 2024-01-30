@@ -133,7 +133,7 @@ iterative_hessian can be set to true to use a more precise method for computing 
 Hessian is always used for fitting.
 """
 function ModelFitting(fitparams, ratdata, ntrials;
-        fixedparams::NamedTuple = (;), iterative_hessian=false, algorithm=:lbfgs,
+        fixedparams::NamedTuple = (;), iterative_hessian=false, algorithm=:lbfgs, algo_params=(;),
         optim_overrides=(;), lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
     println("Fitting parameters: $(fitargs)")
@@ -179,7 +179,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
         extended_trace=true,
         optim_overrides...)
 
-    history, fit_time = optimize_ddm(Val(algorithm), LL_f, l, u, x_init, opts)
+    history, fit_time = optimize_ddm(Val(algorithm), LL_f, l, u, x_init, opts, algo_params)
     println(history.minimizer)
     println(history)
 
@@ -239,15 +239,15 @@ function ModelFitting(fitparams, ratdata, ntrials;
     return D
 end
 
-function optimize_ddm(::Val{:lbfgs}, LL_f::Function, l, u, x_init, opts::NamedTuple)
+function optimize_ddm(::Val{:lbfgs}, LL_f::Function, l, u, x_init, opts::NamedTuple, algo_params::NamedTuple)
     problem = OnceDifferentiable(LL_f, x_init, autodiff=:forward)
-    fit_info = @timed optimize(problem, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;opts...))
+    fit_info = @timed optimize(problem, l, u, x_init, Fminbox(LBFGS(;algo_params...)), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
 end
 
-function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::NamedTuple)
+function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::NamedTuple, algo_params::NamedTuple)
     # remove iterations b/c it is only supposed to be for the inner optimizer, which this method doesn't use
     opts = Base.structdiff(opts, (;iterations=nothing))
     if haskey(opts, :outer_iterations)
@@ -255,7 +255,7 @@ function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::Name
     end
     problem = TwiceDifferentiable(LL_f, x_init, autodiff=:forward)
     constraints = TwiceDifferentiableConstraints(l, u)
-    fit_info = @timed optimize(problem, constraints, x_init, IPNewton(), Optim.Options(;opts...))
+    fit_info = @timed optimize(problem, constraints, x_init, IPNewton(;algo_params...), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
