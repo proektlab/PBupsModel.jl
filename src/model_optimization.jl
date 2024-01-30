@@ -125,10 +125,15 @@ function ModelFitting(args, x_init::Vector, ratdata, ntrials; kwargs...)
     return ModelFitting(make_dict(args, x_init), ratdata, ntrials; kwargs...)
 end
 
-"Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant"
+"""
+Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant.
+iterative_hessian can be set to true to use a more precise method for computing the saved Hessian
+(this can also be done after the fact). If using newton-trustregion algorithm, the non-iterative
+Hessian is always used for fitting.
+"""
 function ModelFitting(fitparams, ratdata, ntrials;
-        fixedparams::NamedTuple = (;), iterative_hessian=false, optim_overrides=(;),
-        lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
+        fixedparams::NamedTuple = (;), iterative_hessian=false, inner_method::Optim.AbstractOptimizer = LBFGS(),
+        optim_overrides=(;), lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
     println("Fitting parameters: $(fitargs)")
     l, u = GetBounds(fitargs; lb_overrides=lb_overrides, ub_overrides=ub_overrides)
@@ -142,19 +147,18 @@ function ModelFitting(fitparams, ratdata, ntrials;
     # updated for julia v0.6 (in-place order)
     function LL_g!(grads::Vector{T}, x::Vector{T}) where {T}
         _, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-
-        for i=1:length(x)
-            grads[i] = LLgrad[i]
-        end
+        grads[:] = LLgrad
     end
 
     function LL_fg!(x::Vector, grads)
         LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-
-        for i=1:length(x)
-            grads[i] = LLgrad[i]
-        end
+        grads[:] = LLgrad
         return LL
+    end
+
+    function LL_h!(hess::Matrix{T}, x::Vector{T}) where {T}
+        _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
+        hess[:] = LLhess
     end
     
     function my_line_search!(df, x, s, x_scratch, gr_scratch, lsr, alpha,
@@ -164,8 +168,8 @@ function ModelFitting(fitparams, ratdata, ntrials;
                       mayterminate, c1, rhohi, rholo, iterations)
     end
 
-    d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
-                                # LL_fg!)
+    # d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
+    d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
 
     # history = optimize(d4, params, l, u, Fminbox(); 
     #          optimizer = GradientDescent, iterations = 500, linesearch = my_line_search!, optimizer_o = Optim.Options(g_tol = 1e-12,
@@ -176,7 +180,8 @@ function ModelFitting(fitparams, ratdata, ntrials;
     #                                                                         show_trace = true,
     #                                                                         extended_trace = true
     #                                                                         ))
-    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;
+
+    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(inner_method), Optim.Options(;
         g_tol=1e-12, outer_g_tol=1e-12,
         x_tol=1e-10, outer_x_tol=1e-10,
         f_tol=1e-6, outer_f_tol=1e-6,
