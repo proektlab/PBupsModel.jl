@@ -140,9 +140,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
     l, u = GetBounds(fitargs; lb_overrides=lb_overrides, ub_overrides=ub_overrides)
 
     function LL_f(x::Vector)
-        LLs = SharedArray{Float64}(ntrials)
-        # return ComputeLL(LLs, ratdata["rawdata"], ntrials, args, x_init)
-        return ComputeLL(LLs, ratdata["rawdata"], ntrials; make_dict(fitargs, x)..., fixedparams...)
+        return ComputeLL_bbox(ratdata["rawdata"], ntrials; make_dict(fitargs, x)..., fixedparams...)
     end
 
     # # updated for julia v0.6 (in-place order)
