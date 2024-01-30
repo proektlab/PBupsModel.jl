@@ -127,12 +127,13 @@ end
 
 """
 Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant.
+Currently algorithm can be :lbfgs or :ipnewton
 iterative_hessian can be set to true to use a more precise method for computing the saved Hessian
-(this can also be done after the fact). If using newton-trustregion algorithm, the non-iterative
+(this can also be done after the fact). If using interior-point newton algorithm, the non-iterative
 Hessian is always used for fitting.
 """
 function ModelFitting(fitparams, ratdata, ntrials;
-        fixedparams::NamedTuple = (;), iterative_hessian=false, inner_method::Optim.AbstractOptimizer = LBFGS(),
+        fixedparams::NamedTuple = (;), iterative_hessian=false, algorithm=:lbfgs,
         optim_overrides=(;), lb_overrides::ParamDict = ParamDict(), ub_overrides::ParamDict = ParamDict())
     fitargs, x_init = GeneralUtils.to_args_format(fitparams)
     println("Fitting parameters: $(fitargs)")
@@ -170,18 +171,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
 
     # d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
     d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
-
-    # history = optimize(d4, params, l, u, Fminbox(); 
-    #          optimizer = GradientDescent, iterations = 500, linesearch = my_line_search!, optimizer_o = Optim.Options(g_tol = 1e-12,
-    #                                                                         x_tol = 1e-32,
-    #                                                                         f_tol = 1e-16,
-    #                                                                         iterations = 20,
-    #                                                                         store_trace = true,
-    #                                                                         show_trace = true,
-    #                                                                         extended_trace = true
-    #                                                                         ))
-
-    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(inner_method), Optim.Options(;
+    opts = Optim.Options(;
         g_tol=1e-12, outer_g_tol=1e-12,
         x_tol=1e-10, outer_x_tol=1e-10,
         f_tol=1e-6, outer_f_tol=1e-6,
@@ -189,10 +179,9 @@ function ModelFitting(fitparams, ratdata, ntrials;
         store_trace=true,
         show_trace=true,
         extended_trace=true,
-        optim_overrides...))
+        optim_overrides...)
 
-    history = fit_info.value
-    fit_time = fit_info.time
+    history, fit_time = optimize_ddm(Val(algorithm), d4, l, u, x_init, opts)
     println(history.minimizer)
     println(history)
 
@@ -250,6 +239,21 @@ function ModelFitting(fitparams, ratdata, ntrials;
     #                                 ("hessian", LLhess)
     #                                 ]))
     return D
+end
+
+function optimize_ddm(::Val{:lbfgs}, d4, l, u, x_init, opts::Optim.Options)
+    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), opts)
+    history = fit_info.value
+    fit_time = fit_info.time
+    return history, fit_time
+end
+
+function optimize_ddm(::Val{:ipnewton}, d4, l, u, x_init, opts::Optim.Options)
+    d4c = TwiceDifferentiableConstraints(l, u)
+    fit_info = @timed optimize(d4, d4c, x_init, IPNewton(), opts)
+    history = fit_info.value
+    fit_time = fit_info.time
+    return history, fit_time
 end
 
 function FitSummary(mpath, filename, D)
