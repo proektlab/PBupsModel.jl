@@ -321,7 +321,7 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # split difference between bins above and below bias (possibly the same)
     # eps is to make sure we get gradient from bias on both bins if we're on the boundary
     # elimintated if statement to make sure we get gradient even when bias is on a bin center (should still work)\
-    biasclamped = clamp(bias, B, -B)
+    biasclamped = clamp(bias, -B, B)
     pright = upperprob(bin_centers, a, biasclamped)
 
     # if -pright > eps(1.) || pright - 1. > eps(1.)
