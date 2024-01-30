@@ -145,32 +145,32 @@ function ModelFitting(fitparams, ratdata, ntrials;
         return ComputeLL(LLs, ratdata["rawdata"], ntrials; make_dict(fitargs, x)..., fixedparams...)
     end
 
-    # updated for julia v0.6 (in-place order)
-    function LL_g!(grads::Vector{T}, x::Vector{T}) where {T}
-        _, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-        grads[:] = LLgrad
-    end
+    # # updated for julia v0.6 (in-place order)
+    # function LL_g!(grads::Vector{T}, x::Vector{T}) where {T}
+    #     _, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
+    #     grads[:] = LLgrad
+    # end
 
-    function LL_fg!(x::Vector, grads)
-        LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-        grads[:] = LLgrad
-        return LL
-    end
+    # function LL_fg!(x::Vector, grads)
+    #     LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
+    #     grads[:] = LLgrad
+    #     return LL
+    # end
 
-    function LL_h!(hess::Matrix{T}, x::Vector{T}) where {T}
-        _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-        hess[:] = LLhess
-    end
+    # function LL_h!(hess::Matrix{T}, x::Vector{T}) where {T}
+    #     _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
+    #     hess[:] = LLhess
+    # end
     
-    function my_line_search!(df, x, s, x_scratch, gr_scratch, lsr, alpha,
-        mayterminate, c1::Real = 1e-4, rhohi::Real = 0.5, rholo::Real = 0.1, iterations::Integer = 1_000)
-        initial_alpha = 0.5
-        LineSearches.bt2!(df, x, s,x_scratch, gr_scratch, lsr, initial_alpha,
-                      mayterminate, c1, rhohi, rholo, iterations)
-    end
+    # function my_line_search!(df, x, s, x_scratch, gr_scratch, lsr, alpha,
+    #     mayterminate, c1::Real = 1e-4, rhohi::Real = 0.5, rholo::Real = 0.1, iterations::Integer = 1_000)
+    #     initial_alpha = 0.5
+    #     LineSearches.bt2!(df, x, s,x_scratch, gr_scratch, lsr, initial_alpha,
+    #                   mayterminate, c1, rhohi, rholo, iterations)
+    # end
 
     # d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
-    d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
+    # d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
     opts = (;
         g_tol=1e-12, outer_g_tol=1e-12,
         x_tol=1e-10, outer_x_tol=1e-10,
@@ -181,7 +181,7 @@ function ModelFitting(fitparams, ratdata, ntrials;
         extended_trace=true,
         optim_overrides...)
 
-    history, fit_time = optimize_ddm(Val(algorithm), d4, l, u, x_init, opts)
+    history, fit_time = optimize_ddm(Val(algorithm), LL_f, l, u, x_init, opts)
     println(history.minimizer)
     println(history)
 
@@ -241,21 +241,23 @@ function ModelFitting(fitparams, ratdata, ntrials;
     return D
 end
 
-function optimize_ddm(::Val{:lbfgs}, d4, l, u, x_init, opts::NamedTuple)
-    fit_info = @timed optimize(d4, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;opts...))
+function optimize_ddm(::Val{:lbfgs}, LL_f::Function, l, u, x_init, opts::NamedTuple)
+    problem = OnceDifferentiable(LL_f, x_init, autodiff=:forward)
+    fit_info = @timed optimize(problem, l, u, x_init, Fminbox(LBFGS()), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
 end
 
-function optimize_ddm(::Val{:ipnewton}, d4, l, u, x_init, opts::NamedTuple)
+function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::NamedTuple)
     # remove iterations b/c it is only supposed to be for the inner optimizer, which this method doesn't use
     opts = Base.structdiff(opts, (;iterations=nothing))
     if haskey(opts, :outer_iterations)
         opts = (;opts..., iterations=opts.outer_iterations)
     end
-    d4c = TwiceDifferentiableConstraints(l, u)
-    fit_info = @timed optimize(d4, d4c, x_init, IPNewton(), Optim.Options(;opts...))
+    problem = TwiceDifferentiable(LL_f, x_init, autodiff=:forward)
+    constraints = TwiceDifferentiableConstraints(l, u)
+    fit_info = @timed optimize(problem, constraints, x_init, IPNewton(), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
