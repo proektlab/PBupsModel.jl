@@ -366,7 +366,9 @@ version = "7.8.3"
 
 [[deps.NLopt]]
 deps = ["NLopt_jll"]
-git-tree-sha1 = "d1d09c342c3dd9b3bae985b088bd928632e4d79e"
+git-tree-sha1 = "e2fb353cbf90de87da63eb08ba1ca4ecce99eebb"
+repo-rev = "od/forced-stop"
+repo-url = "https://github.com/JuliaOpt/NLopt.jl.git"
 uuid = "76087f3c-5699-56af-9a33-bf431cd00edd"
 version = "1.0.1"
 
