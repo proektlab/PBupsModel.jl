@@ -252,7 +252,7 @@ end
 
 function optimize_ddm(::Val{:lbfgs}, LL_f::Function, l, u, x_init, opts::NamedTuple, algo_params::NamedTuple)
     problem = OnceDifferentiable(LL_f, x_init, autodiff=:forward)
-    fit_info = @timed optimize(problem, l, u, x_init, Fminbox(LBFGS(;algo_params...)), Optim.Options(;opts...))
+    fit_info = @timed Optim.optimize(problem, l, u, x_init, Fminbox(LBFGS(;algo_params...)), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
@@ -266,7 +266,7 @@ function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::Name
     end
     problem = TwiceDifferentiable(LL_f, x_init, autodiff=:forward)
     constraints = TwiceDifferentiableConstraints(l, u)
-    fit_info = @timed optimize(problem, constraints, x_init, IPNewton(;algo_params...), Optim.Options(;opts...))
+    fit_info = @timed Optim.optimize(problem, constraints, x_init, IPNewton(;algo_params...), Optim.Options(;opts...))
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
@@ -295,7 +295,7 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
         opt.maxeval = opts.g_calls_limit
     end
 
-    fit_info = @timed optimize(opt, x_init)
+    fit_info = @timed NLopt.optimize(opt, x_init)
     minf, minx, ret = fit_info.value
     fit_time = fit_info.time
 
