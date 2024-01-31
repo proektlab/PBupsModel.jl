@@ -278,33 +278,7 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
     opt = Opt(:LD_LBFGS, length(x_init))
     opt.lower_bounds = l
     opt.upper_bounds = u
-    
-    # variables to update as optimization proceeds
-    best_ll = Inf
-    step_num = 0
-    last_x = x_init
-    last_g = nothing
-
-    opt.min_objective = function (x, g)
-        ll = LL_f(x, g)
-        if ll < best_ll  # Print update
-            x_norm = norm(x)
-            x_dist = norm(x .- last_x)
-            status = @sprintf "%d) LL = %.5e, |x| = %.5e, Δx = %.5e" step_num ll x_norm x_dist
-            if length(g) > 0
-                status *= @sprintf ", |∇| = %.5e" norm(g)
-                if !isnothing(last_g)
-                    status *= @sprintf ", Δ∇ = %.5e" norm(g .- last_g)
-                end
-                last_g = copy(g)
-            end
-            println(status)
-
-            best_ll = ll
-            last_x = copy(x)
-            step_num += 1
-        end
-    end
+    opt.min_objective = make_stateful_objective_fn(LL_f, x_init; algo_params...)
 
     # translate options from Optim.jl
     haskey(opts, :f_tol) && (opt.ftol_rel = opts.f_tol)
@@ -336,6 +310,45 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
         println("Abnormal return value: $(ret)")
     end
     return res, fit_time
+end
+
+function make_stateful_objective_fn(LL_fg!::Function, x_init; debug=false)
+    # variables to update as optimization proceeds
+    best_ll = Inf
+    step_num = 0
+    last_x = x_init
+    last_g = nothing
+
+    function objective(x::Array, g::Array)
+        if debug
+            if length(g) == 0
+                println("Calling with no gradient")
+            else
+                println("Calling with gradient")
+            end
+        end
+
+        ll = LL_fg!(x, g)
+        if ll < best_ll  # Print update
+            dll = best_ll - ll
+            x_norm = norm(x)
+            dx = norm(x .- last_x)
+            status = @sprintf "%d) f = %.5e, Δf = %.5e, |x| = %.5e, Δx = %.5e" step_num ll dll x_norm dx
+            if length(g) > 0
+                status *= @sprintf ", |∇| = %.5e" norm(g)
+                if !isnothing(last_g)
+                    status *= @sprintf ", Δ∇ = %.5e" norm(g .- last_g)
+                end
+                last_g = copy(g)
+            end
+            println(status)
+
+            best_ll = ll
+            last_x = copy(x)
+            step_num += 1
+        end
+    end
+    return objective
 end
 
 function FitSummary(mpath, filename, D)
