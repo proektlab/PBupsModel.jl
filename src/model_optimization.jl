@@ -278,12 +278,19 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
     opt = Opt(:LD_LBFGS, length(x_init))
     opt.lower_bounds = l
     opt.upper_bounds = u
-    opt.min_objective = make_stateful_objective_fn(LL_f, x_init; algo_params...)
+    
+    # default gtol is 1e-8 and it's not configurable
+    # multiply function value and gradient by this to scale problem so that 1e-8 gets me the gtol I want
+    gtol_factor = 1
+    haskey(opts, :g_tol) && (gtol_factor = 1e-8/opts.g_tol)
+    haskey(opts, :g_abstol) && (gtol_factor = 1e-8/opts.g_abstol)
+
+    opt.min_objective = make_stateful_objective_fn(LL_f, x_init, gtol_factor; algo_params...)
 
     # translate options from Optim.jl
     haskey(opts, :f_tol) && (opt.ftol_rel = opts.f_tol)
     haskey(opts, :f_reltol) && (opt.ftol_rel = opts.f_reltol)
-    haskey(opts, :f_abstol) && (opt.ftol_abs = opts.f_abstol)
+    haskey(opts, :f_abstol) && (opt.ftol_abs = opts.f_abstol * gtol_factor)  # scaling up also increases absolute f difference
 
     haskey(opts, :x_tol) && (opt.xtol_abs = opts.x_tol)
     haskey(opts, :x_reltol) && (opt.xtol_rel = opts.x_reltol)
@@ -291,11 +298,8 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
 
     haskey(opts, :time_limit) && (opt.maxtime = opts.time_limit)
 
-    if haskey(opts, :f_calls_limit)
-        opt.maxeval = opts.f_calls_limit
-    elseif haskey(opts, :g_calls_limit)
-        opt.maxeval = opts.g_calls_limit
-    end
+    haskey(opts, :f_calls_limit) && (opt.maxeval = opts.f_calls_limit)
+    haskey(opts, :g_calls_limit) && (opt.maxeval = opts.g_calls_limit)
 
     fit_info = @timed NLopt.optimize(opt, x_init)
     minf, minx, ret = fit_info.value
@@ -304,7 +308,7 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
     res = (minimizer=minx, minimum=minf,
         x_converged=(ret == :XTOL_REACHED),
         f_converged=(ret == :FTOL_REACHED),
-        g_converged=(ret == :SUCCESS)  # probably not really what this means
+        g_converged=(ret == :SUCCESS)  # default tolerance is 1e-8 but I adjust to what I want above
     )
     if ret ∉ [:XTOL_REACHED, :FTOL_REACHED, :SUCCESS]
         println("Abnormal return value: $(ret)")
@@ -312,21 +316,18 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
     return res, fit_time
 end
 
-function make_stateful_objective_fn(LL_fg!::Function, x_init; debug=false)
+function make_stateful_objective_fn(LL_fg!::Function, x_init, gtol_factor; debug=false)
     # variables to update as optimization proceeds
+    nx = length(x_init)
     best_ll = Inf
     step_num = 0
     last_x = x_init
-    last_g = nothing
+    last_g = Vector{Float64}(undef, nx)
+    have_g = false
+    x_fmt = Printf.Format("   x = [" * join(repeat(["%.6g"], nx), ", ") * "]\n")
 
     function objective(x::Array, g::Array)
-        if debug
-            if length(g) == 0
-                println("Calling with no gradient")
-            else
-                println("Calling with gradient")
-            end
-        end
+        Printf.format(stdout, x_fmt, x...)
 
         ll = LL_fg!(x, g)
         if ll < best_ll  # Print update
@@ -336,17 +337,21 @@ function make_stateful_objective_fn(LL_fg!::Function, x_init; debug=false)
             status = @sprintf "%d) f = %.5e, Δf = %.5e, |x| = %.5e, Δx = %.5e" step_num ll dll x_norm dx
             if length(g) > 0
                 status *= @sprintf ", |∇| = %.5e" norm(g)
-                if !isnothing(last_g)
+                if have_g
                     status *= @sprintf ", Δ∇ = %.5e" norm(g .- last_g)
                 end
-                last_g = copy(g)
+                last_g[:] = g
+                have_g = true
             end
             println(status)
 
             best_ll = ll
-            last_x = copy(x)
+            last_x[:] = x
             step_num += 1
         end
+
+        g .*= gtol_factor
+        return ll * gtol_factor
     end
     return objective
 end
