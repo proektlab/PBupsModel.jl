@@ -296,12 +296,12 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
                 if !isnothing(last_g)
                     status *= @sprintf ", Δ∇ = %.5e" norm(g .- last_g)
                 end
-                last_g = g
+                last_g = copy(g)
             end
             println(status)
 
             best_ll = ll
-            last_x = x
+            last_x = copy(x)
             step_num += 1
         end
     end
@@ -332,6 +332,9 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
         f_converged=(ret == :FTOL_REACHED),
         g_converged=(ret == :SUCCESS)  # probably not really what this means
     )
+    if ret ∉ [:XTOL_REACHED, :FTOL_REACHED, :SUCCESS]
+        println("Abnormal return value: $(ret)")
+    end
     return res, fit_time
 end
 
