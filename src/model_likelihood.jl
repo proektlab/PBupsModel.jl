@@ -206,8 +206,8 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # bias - use bias_rel (to keep between -B and B) unless bias is directly given
     if isnothing(bias)
         bias = bias_rel * B
-    else
-        bias = clamp(bias, -B, B)
+    # else
+    #     bias = clamp(bias, -B, B)  # DON'T do this, will kill gradient
     end
 
     if isempty(RightClickTimes) RightClickTimes = zeros(0) end;
@@ -326,9 +326,9 @@ function logProbRight(RightClickTimes::Array{Float64,1}, LeftClickTimes::Array{F
     # if -pright > eps(1.) || pright - 1. > eps(1.)
     #     throw(InvalidStateException("Probability of right turn ($(convert(Float64, pright))) outside [0, 1]", :probRightOutsideRange))
     # end
-    pright = clamp(pright, 0., 1.)
+    # pright = clamp(pright, eps(1.), 1.)  # DON'T do this b/c it can zero the gradient
     
-    return log(pright)
+    return log(pright + 1e-5)  # can adjust epislon if needed to make sure we don't get a negative argument
 end
 
 """
