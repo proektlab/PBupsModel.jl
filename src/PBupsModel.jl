@@ -12,6 +12,7 @@ import Base.convert
 using MAT
 using ForwardDiff
 using Optim
+using NLopt
 using GeneralUtils
 
 import ForwardDiff.DiffResults as DiffBase

@@ -127,7 +127,7 @@ end
 
 """
 Fit parameters in fitparams (dict or named tuple), holding parameters in fixedparams constant.
-Currently algorithm can be :lbfgs or :ipnewton
+Currently algorithm can be :lbfgs or :ipnewton, or :lbfgs_nlopt to use the NLopt package instead of Optim.jl.
 iterative_hessian can be set to true to use a more precise method for computing the saved Hessian
 (this can also be done after the fact). If using interior-point newton algorithm, the non-iterative
 Hessian is always used for fitting.
@@ -149,11 +149,15 @@ function ModelFitting(fitparams, ratdata, ntrials;
     #     grads[:] = LLgrad
     # end
 
-    # function LL_fg!(x::Vector, grads)
-    #     LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
-    #     grads[:] = LLgrad
-    #     return LL
-    # end
+    function LL_f(x::Vector, grads::Vector)
+        if length(grads) > 0
+            LL, LLgrad = ComputeGrad(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
+            grads[:] = LLgrad
+        else
+            LL = LL_f(x)
+        end
+        return LL
+    end
 
     # function LL_h!(hess::Matrix{T}, x::Vector{T}) where {T}
     #     _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x), fixedparams)
@@ -170,9 +174,9 @@ function ModelFitting(fitparams, ratdata, ntrials;
     # d4 = OnceDifferentiable(LL_f,LL_g!,x_init)
     # d4 = TwiceDifferentiable(LL_f, LL_g!, LL_h!, x_init)
     opts = (;
-        g_tol=1e-12, outer_g_tol=1e-12,
-        x_tol=1e-10, outer_x_tol=1e-10,
-        f_tol=1e-6, outer_f_tol=1e-6,
+        g_abstol=1e-12, outer_g_abstol=1e-12,
+        x_abstol=1e-10, outer_x_abstol=1e-10,
+        f_reltol=1e-6, outer_f_reltol=1e-6,
         iterations=10,  # inner
         store_trace=true,
         show_trace=true,
@@ -194,15 +198,22 @@ function ModelFitting(fitparams, ratdata, ntrials;
         _, _, LLhess = ComputeHess(ratdata["rawdata"], ntrials, make_dict(fitargs, x_bf), fixedparams)
     end
 
-    Gs = zeros(length(history.trace),length(x_init))
-    Xs = zeros(length(history.trace),length(x_init))
-    fs = zeros(length(history.trace))
+    if isa(history, Optim.OptimizationResults)
+        Gs = zeros(length(history.trace),length(x_init))
+        Xs = zeros(length(history.trace),length(x_init))
+        fs = zeros(length(history.trace))
 
-    for i=1:length(history.trace)
-        tt = getfield(history.trace[i],:metadata)
-        fs[i] = getfield(history.trace[i],:value)
-        Gs[i,:] = tt["g(x)"]
-        Xs[i,:] = tt["x"]
+        for i=1:length(history.trace)
+            tt = getfield(history.trace[i],:metadata)
+            fs[i] = getfield(history.trace[i],:value)
+            Gs[i,:] = tt["g(x)"]
+            Xs[i,:] = tt["x"]
+        end
+    else  # NLopt doesn't give us history information :(
+        empty = Matrix{Float64}(undef, 0, 0)
+        Gs = empty
+        Xs = empty
+        fs = empty
     end
 
     D = Dict([("x_init",x_init),    
@@ -259,6 +270,41 @@ function optimize_ddm(::Val{:ipnewton}, LL_f::Function, l, u, x_init, opts::Name
     history = fit_info.value
     fit_time = fit_info.time
     return history, fit_time
+end
+
+function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::NamedTuple, algo_params::NamedTuple)
+    opt = Opt(:LD_LBFGS, length(x_init))
+    opt.lower_bounds = l
+    opt.upper_bounds = u
+    opt.min_objective = LL_f
+
+    # translate options from Optim.jl
+    haskey(opts, :f_tol) && (opt.ftol_rel = opts.f_tol)
+    haskey(opts, :f_reltol) && (opt.ftol_rel = opts.f_reltol)
+    haskey(opts, :f_abstol) && (opt.ftol_abs = opts.f_abstol)
+
+    haskey(opts, :x_tol) && (opt.xtol_abs = opts.x_tol)
+    haskey(opts, :x_reltol) && (opt.xtol_rel = opts.x_reltol)
+    haskey(opts, :x_abstol) && (opt.xtol_abs = opts.x_abstol)
+
+    haskey(opts, :time_limit) && (opt.maxtime = opts.time_limit)
+
+    if haskey(opts, :f_calls_limit)
+        opt.maxeval = opts.f_calls_limit
+    elseif haskey(opts, :g_calls_limit)
+        opt.maxeval = opts.g_calls_limit
+    end
+
+    fit_info = @timed optimize(opt, x_init)
+    minf, minx, ret = fit_info.value
+    fit_time = fit_info.time
+
+    res = (minimizer=minx, minimum=minf,
+        x_converged=(ret == :XTOL_REACHED),
+        f_converged=(ret == :FTOL_REACHED),
+        g_converged=(ret == :SUCCESS)  # probably not really what this means
+    )
+    return res, fit_time
 end
 
 function FitSummary(mpath, filename, D)
