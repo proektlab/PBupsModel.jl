@@ -1,3 +1,5 @@
+using Printf
+
 # updating for generalizing the model. 
 # user will give args to init parameters 
 # use 'dictionary' -> each parameter has different range
@@ -276,7 +278,33 @@ function optimize_ddm(::Val{:lbfgs_nlopt}, LL_f::Function, l, u, x_init, opts::N
     opt = Opt(:LD_LBFGS, length(x_init))
     opt.lower_bounds = l
     opt.upper_bounds = u
-    opt.min_objective = LL_f
+    
+    # variables to update as optimization proceeds
+    best_ll = Inf
+    step_num = 0
+    last_x = x_init
+    last_g = nothing
+
+    opt.min_objective = function (x, g)
+        ll = LL_f(x, g)
+        if ll < best_ll  # Print update
+            x_norm = norm(x)
+            x_dist = norm(x .- last_x)
+            status = @sprintf "%d) LL = %.5e, |x| = %.5e, Δx = %.5e" step_num ll x_norm x_dist
+            if length(g) > 0
+                status *= @sprintf ", |∇| = %.5e" norm(g)
+                if !isnothing(last_g)
+                    status *= @sprintf ", Δ∇ = %.5e" norm(g .- last_g)
+                end
+                last_g = g
+            end
+            println(status)
+
+            best_ll = ll
+            last_x = x
+            step_num += 1
+        end
+    end
 
     # translate options from Optim.jl
     haskey(opts, :f_tol) && (opt.ftol_rel = opts.f_tol)
