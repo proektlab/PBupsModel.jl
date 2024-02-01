@@ -39,6 +39,7 @@ export
     TrialsLikelihood,
 
 # optimization
+    ParamDict,
     InitParams,
     GetBounds,
     ModelFitting,

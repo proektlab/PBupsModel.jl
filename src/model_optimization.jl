@@ -8,72 +8,71 @@ using Printf
 
 const ParamDict = Dict{String, Float64}
 
-function InitParams(args, seed_mode=1)
+function InitParams(args, seed_mode=1, overrides::ParamDict = ParamDict())
 
     # Parameters (match the parameter order with original code)
     # --> order doesn't matter now, it will be matched with the order of parameters
 
     x_val = zeros(length(args))
+    local default_params
 
     # random seed    
     if seed_mode == 1
-        rseed_param = Dict("sigma_a" => rand()*50., 
-        "sigma_s_R" => rand()*50.,
-        "sigma_s_L" => rand()*50.,
-        "sigma_i" => rand()*30.,
-        "lambda" => randn()*.01,
-        "B" => rand()*12. + 5.,
-        "bias" => randn(),
-        "phi" => rand()*0.99+0.01,
-        "tau_phi" => 0.695*rand()+0.005,
-        "lapse_R" => rand()*.5,
-        "lapse_L" => rand()*.5,
-        "input_gain_weight" => rand())
-        rseed_param["bias_rel"] = rseed_param["bias"] / rseed_param["B"]
+        default_params = Dict(
+            "sigma_a" => rand()*50., 
+            "sigma_s_R" => rand()*50.,
+            "sigma_s_L" => rand()*50.,
+            "sigma_i" => rand()*30.,
+            "lambda" => randn()*.01,
+            "B" => rand()*12. + 5.,
+            "bias" => randn(),
+            "phi" => rand()*0.99+0.01,
+            "tau_phi" => 0.695*rand()+0.005,
+            "lapse_R" => rand()*.5,
+            "lapse_L" => rand()*.5,
+            "input_gain_weight" => rand())
 
-        for i in eachindex(args)
-            x_val[i] = rseed_param[args[i]]
-        end
     # bing's rat avg parameter set
     elseif seed_mode == 2
-        params = [-0.2767, 2.0767, 75.9600, 1.9916, 8.9474, 0.1694, 0.0964, -0.0269, 0.0613]
-        defaults_param = Dict("sigma_a" => 2.0767, 
-        "sigma_s_R" => 75.9600,
-        "sigma_s_L" => 75.9600,
-        "sigma_i" => 1.9916,
-        "lambda" => -0.2767,
-        "B" => 8.9474,
-        "bias" => -0.0269,
-        "phi" => 0.1694,
-        "tau_phi" => 0.0964,
-        "lapse_R" => 0.0613,
-        "lapse_L" => 0.0613,
-        "input_gain_weight" => 0.5)
-        defaults_param["bias_rel"] = defaults_param["bias"] / defaults_param["B"]
-
-        for i in eachindex(args)
-            x_val[i] = defaults_param[args[i]]
-        end
+        default_params = Dict(
+            "sigma_a" => 2.0767, 
+            "sigma_s_R" => 75.9600,
+            "sigma_s_L" => 75.9600,
+            "sigma_i" => 1.9916,
+            "lambda" => -0.2767,
+            "B" => 8.9474,
+            "bias" => -0.0269,
+            "phi" => 0.1694,
+            "tau_phi" => 0.0964,
+            "lapse_R" => 0.0613,
+            "lapse_L" => 0.0613,
+            "input_gain_weight" => 0.5)
 
     # simple fixed parameter set    
     elseif seed_mode == 3
-        simple_param = Dict("sigma_a" => 1., 
-        "sigma_s_R" => 0.1,
-        "sigma_s_L" => 0.1,
-        "sigma_i" => 0.2,
-        "lambda" => -0.0005,
-        "B" => 6.1,
-        "bias" => 0.1,
-        "phi" => 0.3,
-        "tau_phi" => 0.1,
-        "lapse_R" => 0.1,
-        "lapse_L" => 0.1,
-        "input_gain_weight" => 0.5)
-        simple_param["bias_rel"] = simple_param["bias"] / simple_param["B"]
+        default_params = Dict(
+            "sigma_a" => 1., 
+            "sigma_s_R" => 0.1,
+            "sigma_s_L" => 0.1,
+            "sigma_i" => 0.2,
+            "lambda" => -0.0005,
+            "B" => 6.1,
+            "bias" => 0.1,
+            "phi" => 0.3,
+            "tau_phi" => 0.1,
+            "lapse_R" => 0.1,
+            "lapse_L" => 0.1,
+            "input_gain_weight" => 0.5)
+    else
+        error("Not a recognized seed mode ($seed_mode)")
+    end
 
-        for i in eachindex(args)
-            x_val[i] = simple_param[args[i]]
-        end
+    # define default bias_rel relative to bias and B
+    default_params["bias_rel"] = default_params["bias"] / default_params["B"]
+
+    for i in eachindex(args)
+        arg = args[i]
+        x_val[i] = arg in keys(overrides) ? overrides[arg] : default_params[arg]
     end
 
     return x_val   
